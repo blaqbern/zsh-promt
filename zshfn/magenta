@@ -1,0 +1,1 @@
+echo %F{magenta}$1%f

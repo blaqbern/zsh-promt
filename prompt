@@ -1,0 +1,86 @@
+if [[ ${fpath[(ie)$0:a:h/zshfn]} -gt ${#fpath} ]]; then
+  fpath=( $0:a:h/zshfn ${fpath[@]} )
+fi
+
+autoload $fpath[1]/*(:t)
+
+precmd () {
+  build_prompt
+}
+
+build_prompt () {
+  local l_prompt_components=( $(blue %~) $(yellow ⏾) '' )
+  local r_prompt_components=$(build_r_prompt)
+
+  PROMPT=${l_prompt_components[@]}
+  RPROMPT=${r_prompt_components[@]}
+}
+
+build_r_prompt () {
+  local components
+
+  if [[ -a .git ]]; then
+    local current_branch=$(get_current_branch_name)
+    local default_branch=$(get_default_branch_name)
+
+    local status_badges=$(git_status_badges)
+    local stash_badge=$(git_stash_badge)
+    local compare_origin_default=$(compare_origin_ref $default_branch)
+    local compare_origin_current=$(compare_origin_ref $current_branch)
+
+    components=( $(blue $current_branch) )
+    [[ -n $status_badges ]] && components+=( $status_badges )
+    [[ -n $stash_badge ]] && components+=( $stash_badge )
+    if [[ -n $compare_origin_default ]]; then
+      components=( $(cyan $compare_origin_default) ${components[@]} )
+    fi
+    if [[ -n $compare_origin_current ]]; then
+      components=( $(magenta $compare_origin_current) ${components[@]} )
+    fi
+  else
+    components=( $(yellow ×) )
+  fi
+
+  echo $components
+}
+
+git_status_badges () {
+  local badge=⩍
+  local status_badges=()
+
+  local git_status=$(git status 2>/dev/null)
+
+  [[ $git_status =~ 'Changes to be committed:' ]] && status_badges+=( $(green $badge) )
+  [[ $git_status =~ 'Changes not staged for commit:' ]] && status_badges+=( $(yellow $badge) )
+  [[ $git_status =~ 'Untracked files:' ]] && status_badges+=( $(red $badge) )
+
+  [[ ${#status_badges} -gt 0 ]] && echo $status_badges
+}
+
+git_stash_badge () {
+  [[ -a .git/refs/stash ]] && echo ↪
+}
+
+compare_origin_ref () {
+  if [[ -n $1 && -a .git/refs/remotes/origin/$1 ]]; then
+    local current_ref=$(cat .git/refs/heads/$(get_current_branch_name))
+    local origin_ref=$(cat .git/refs/remotes/origin/$1)
+
+    if [[ $current_ref != $origin_ref ]]; then
+      local ahead=ᐃ
+      local behind=ᐁ
+
+      local merge_base=$(git merge-base $current_ref $origin_ref 2>/dev/null)
+
+      if [[ $origin_ref == $merge_base ]]; then
+        echo $ahead
+      elif [[ $current_ref == $merge_base ]]; then
+        echo $behind
+      else
+        echo $ahead$behind
+      fi
+    fi
+  else
+    echo ∅
+  fi
+}

@@ -1,0 +1,13 @@
+local branch_name
+
+local control_char=∅
+local branches=( .git/refs/remotes/origin/*(:t) )
+
+for branch_name in ${branches[@]} $control_char; do
+  [[ $branch_name == 'develop' ]] && break
+  [[ $branch_name == 'main' ]] && break
+  [[ $branch_name == 'master' ]] && break
+  [[ $branch_name == $control_char ]] && branch_name=''
+done
+
+echo $branch_name
